@@ -1,6 +1,6 @@
 {
   "name": "@zmainer/wxbridge",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "main": "./lib/index.js",
   "dsh": {
@@ -27,7 +27,7 @@
     "README.md",
     "package.json"
   ],
-  "description": "DSH plugin: connect WeChat (official iLink/ClawBot) to DeepSeek Harness — settings page with live bridge status, device pairing token, and the bundled bridge + keeper kernel.",
+  "description": "DSH plugin: connect WeChat (official iLink/ClawBot) to DeepSeek Harness — settings page with live bridge status, QR device pairing, and the bundled bridge + keeper kernel.",
   "license": "MIT",
   "keywords": [
     "deepseek-harness",
