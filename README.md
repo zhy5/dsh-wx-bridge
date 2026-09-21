@@ -145,3 +145,15 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 ## 许可
 
 MIT
+
+本包内还**原样包含**以下第三方代码（均为 MIT，用于不依赖用户环境地渲染配对二维码）：
+
+| 位置 | 来源 | 许可 |
+| --- | --- | --- |
+| `lib/vendor/qrcode-core/` | `qrcode@1.5.4` 的 `lib/core/*`（编码核心，零外部依赖） | MIT © 2012 Ryan Day，见该目录 `LICENSE` |
+| `lib/vendor/qrcode-core/dijkstrajs.js` | `dijkstrajs@1.0.3` 的 `dijkstra.js` | MIT，见 `dijkstrajs.LICENSE` |
+| `lib/vendor/qr-svg.cjs` | 本插件自带（用上面的核心产出模块矩阵，自绘 SVG） | MIT |
+
+对 vendored 代码的唯一改动：`segments.js` 里 `require('dijkstrajs')` → `require('./dijkstrajs')`
+（npm 打包默认忽略 `node_modules/`，改相对路径才能保证发布包里不缺文件）。详见
+`lib/vendor/qrcode-core/NOTICE.md`。

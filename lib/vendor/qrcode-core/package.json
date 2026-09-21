@@ -1,0 +1,8 @@
+{
+  "name": "qrcode-core-vendored",
+  "private": true,
+  "version": "1.5.4",
+  "description": "Vendored copy of qrcode@1.5.4 lib/core (MIT, Copyright (c) 2012 Ryan Day). CommonJS on purpose: the plugin package itself is type=module, so this nested manifest keeps these files CJS.",
+  "type": "commonjs",
+  "license": "MIT"
+}
