@@ -1,3 +1,9 @@
 node_modules/
 *.tgz
 .DS_Store
+
+# 本地备份/临时产物不进包
+*.bak*
+*.fix-*
+*.pre-host*
+*.tampered-*

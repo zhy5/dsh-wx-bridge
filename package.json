@@ -1,6 +1,6 @@
 {
   "name": "@zmainer/wxbridge",
-  "version": "0.0.16",
+  "version": "1.0.1",
   "type": "module",
   "main": "./lib/index.js",
   "dsh": {

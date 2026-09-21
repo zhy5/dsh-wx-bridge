@@ -1,0 +1,19 @@
+# wxbridge ACP 叠加层 · **对话模式**（手机默认档）
+# 与 acp-overlay.yml 的差别：收窄注入面，避免「随口一句话」被当成第二大脑任务落盘。
+#   1) 仍停用 dsh-computer-use（否则 profile 整树加载失败，原因见 acp-overlay.yml）；
+#   2) 停用技能目录（skill-filesystem 提供 ~/.ohdsh/skills，tool-skill 提供加载工具）——
+#      手机提示里不再出现 second-brain-distill 这类"沉淀知识"的技能；
+#   3) 覆盖 system-prompt 人格为「对话助手」：从本会话上下文回答，不主动读写文件/知识库。
+# 需要真正的第二大脑行为时，手机发 `/brain on` 切到第二大脑模式（另一份叠加层）。
+- id: dsh-computer-use
+  disabled: true
+- id: skill-filesystem
+  disabled: true
+- id: tool-skill
+  disabled: true
+- id: system-prompt
+  config:
+    persona: >-
+      你是「手机微信通道」里的对话助手，用中文简洁回答。直接用当前会话已有的上下文回答，
+      不要为了"记住"去读写工作区文件或知识库；只有当用户明确要求（例如"记到库里""归档""落盘"）
+      时才动文件。
