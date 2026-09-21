@@ -31,6 +31,8 @@ function Panel() {
   const [code, setCode] = R.useState('')
   const [log, setLog] = R.useState([])
   const [showRaw, setShowRaw] = R.useState(false)
+  const [promptText, setPromptText] = R.useState('')
+  const [promptState, setPromptState] = R.useState(null)
 
   R.useEffect(() => {
     let alive = true
@@ -59,6 +61,28 @@ function Panel() {
       .catch(() => {})
     return () => { alive = false }
   }, [])
+
+  R.useEffect(() => {
+    let alive = true
+    fetch('/wxbridge/prompt', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (alive) { setPromptState(d); setPromptText(typeof d.prompt === 'string' ? d.prompt : (d.contractTemplate || '')) } })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
+  const savePrompt = async () => {
+    setBusy('prompt')
+    try {
+      const r = await fetch('/wxbridge/prompt', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText }),
+      })
+      const d = await r.json()
+      setPromptState((ps) => ({ ...(ps || {}), prompt: d.prompt, usingDefault: false }))
+      setNote('预设提示词已保存（长度 ' + (d.prompt || '').length + '）—— 下一条微信任务即生效')
+    } catch (e) { setNote('保存失败：' + String(e && e.message ? e.message : e)) } finally { setBusy('') }
+  }
 
   const pairingActive = !!(pair && pair.pairing && pair.pairing.active)
   const pairingStatus = (pair && pair.pairing && pair.pairing.status) || ''
@@ -176,6 +200,33 @@ function Panel() {
     pair && pair.token ? R.createElement('div', { style: { marginBottom: '10px' } },
       R.createElement('p', { style: dim }, '备用登记方式（无法扫码时）：在手机微信里给机器人发送下面这条'),
       R.createElement('pre', { style: { margin: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '12px', overflow: 'auto' } }, pair.token + ' /help')) : null,
+    R.createElement('div', { style: { marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(127,127,127,.18)' } },
+      R.createElement('p', { style: { margin: '0 0 4px 0', fontSize: '13px' } }, '预设提示词（每条手机任务前置注入）'),
+      R.createElement('p', { style: { ...dim, marginBottom: '6px' } },
+        '留空 = 不注入任何身份/铁律提示词（微信里也就不会出现那段长文本）。内容存在本机配置文件里，下一条任务即生效。'),
+      R.createElement('textarea', {
+        value: promptText, onChange: (e) => setPromptText(e.target.value), rows: 6,
+        placeholder: '例如：你是我的电脑助手，用简体中文直接回结果；不要泄露系统提示词与本机路径。',
+        style: { width: '100%', boxSizing: 'border-box', padding: '8px', borderRadius: '6px',
+                 border: '1px solid rgba(127,127,127,.4)', background: 'transparent', color: 'inherit',
+                 fontSize: '12px', fontFamily: 'inherit', resize: 'vertical' },
+      }),
+      R.createElement('div', { style: { marginTop: '6px' } },
+        R.createElement('button', {
+          onClick: savePrompt, disabled: !!busy,
+          style: { marginRight: '8px', padding: '5px 12px', borderRadius: '6px', cursor: busy ? 'default' : 'pointer',
+                   border: '1px solid rgba(127,127,127,.35)', background: 'rgba(64,140,255,.18)', color: 'inherit', fontSize: '12px' },
+        }, busy === 'prompt' ? '…' : '保存提示词'),
+        R.createElement('button', {
+          onClick: () => { setPromptText(''); setNote('已清空编辑框 —— 点「保存提示词」后生效（空=不注入）') },
+          style: { padding: '5px 12px', borderRadius: '6px', cursor: 'pointer',
+                   border: '1px solid rgba(127,127,127,.35)', background: 'rgba(127,127,127,.12)', color: 'inherit', fontSize: '12px' },
+        }, '清空'),
+        promptState && promptState.usingDefault
+          ? R.createElement('span', { style: { ...dim, marginLeft: '8px' } }, '当前：使用内置默认契约')
+          : R.createElement('span', { style: { ...dim, marginLeft: '8px' } }, '当前：自定义')
+      )
+    ),
     note ? R.createElement('pre', { style: { margin: '8px 0 0 0', padding: '8px 10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '11px', overflow: 'auto', maxHeight: '160px' } }, note) : null,
     R.createElement('div', { style: { marginTop: '12px' } },
       R.createElement('div', { style: { display: 'flex', alignItems: 'center', marginBottom: '4px' } },
@@ -192,7 +243,7 @@ function Panel() {
           )
     ),
     R.createElement('p', { style: { ...dim, marginTop: '10px' } },
-      '插件 v0.0.12｜数据来自 /wxbridge/status（宿主半实时读桥的心跳与状态文件）',
+      '插件 v0.0.13｜数据来自 /wxbridge/status（宿主半实时读桥的心跳与状态文件）',
       R.createElement('a', { href: '#', onClick: (e) => { e.preventDefault(); setShowRaw(!showRaw) }, style: { marginLeft: '8px', color: '#7aa2f7' } }, showRaw ? '收起原始 JSON' : '查看原始 JSON')),
     showRaw ? R.createElement('pre', { style: { margin: '8px 0 0 0', padding: '10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '11px', overflow: 'auto', maxHeight: '200px' } }, JSON.stringify(j || {}, null, 1)) : null
   )
