@@ -1,0 +1,40 @@
+{
+  "name": "@zmainer/wxbridge",
+  "version": "0.0.3",
+  "type": "module",
+  "main": "./lib/index.js",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node scripts/build-client.mjs"
+  },
+  "files": [
+    "lib",
+    "src",
+    "scripts",
+    "cordis.patch.yml",
+    "README.md",
+    "package.json"
+  ],
+  "description": "DSH plugin: connect WeChat (official iLink/ClawBot) to DeepSeek Harness — settings page with live bridge status, device pairing token, and the bundled bridge + keeper kernel.",
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "wechat",
+    "weixin",
+    "ilink",
+    "clawbot"
+  ]
+}

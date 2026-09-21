@@ -1,0 +1,3 @@
+- insert:
+    - id: wxbridge
+      name: '@zmainer/wxbridge'
