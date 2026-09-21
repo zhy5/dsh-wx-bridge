@@ -135,6 +135,10 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ## 最近变更
 
+- **1.0.3**：**配对二维码不再依赖用户环境** —— 此前宿主半靠 `require.resolve('qrcode')` 在用户 profile 里
+  找那个包（本包 `dependencies` 为空），干净安装的机器渲染不出二维码、只剩"备用链接"；
+  现在把 `qrcode@1.5.4` 的编码核心与 `dijkstrajs@1.0.3`（均 MIT）vendored 进 `lib/vendor/`，
+  并用自带渲染器输出 SVG data URL（自带优先，profile 里的 `qrcode` 退为兜底）。
 - **1.0.2**：设置页「微信连接」面板换微信风格视觉（微信绿头卡 + 内联 SVG 双气泡 logo + 状态胶囊/呼吸点、
   四张数据卡、胶囊按钮、扫码卡片、聊天气泡样式的登记 token）；修复新面板里「保存预设」会把值清空的问题；
   面板版本号改为从 `package.json` 读取（不再写死）。
