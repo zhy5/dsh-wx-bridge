@@ -80,10 +80,10 @@ export function apply(ctx, config) {
       intervalMs: cfg.intervalMs || file.intervalMs || undefined,
       staleMs: cfg.staleMs || file.staleMs || undefined,
       bridgePath: join(KERNEL, 'bridge.mjs'),
+      bridgeArgs: vault ? ['--vault', vault] : [],
       // 宿主半只做监测与报告，生命周期归独立 keeper（E-2026-09-21-06）。
       superviseMode: ownership === 'host' ? 'heal' : 'monitor',
-      // --host-home 由内核（keeper.mjs）统一追加，这里只补宿主特有的参数，避免重复
-      bridgeArgs: [...(vault ? ['--vault', vault] : []), ...(ownership === 'host' ? ['--owner-pid', String(process.pid)] : [])],
+      bridgeArgs: [...(vault ? ['--vault', vault] : []), ...(ownership === 'host' ? ['--owner-pid', String(process.pid), '--host-home', hostHome] : [])],
       detached: ownership === 'host' ? false : true,
     })
     keeper.lifecycle = ownership
@@ -176,7 +176,7 @@ export function apply(ctx, config) {
         const p = new URL(req.url ?? '/', 'http://x').pathname.replace(/^\/wxbridge/, '') || '/'
         try {
           await booted
-          if (p === '/status') { const b = bridgeView(); return send(res, { ok: true, plugin: 'wxbridge', version: '0.0.9', hostPid: process.pid, bridge: b, peers: b ? b.peers : 0 }) }
+          if (p === '/status') { const b = bridgeView(); return send(res, { ok: true, plugin: 'wxbridge', version: '0.0.8', hostPid: process.pid, bridge: b, peers: b ? b.peers : 0 }) }
           if (p === '/log') return send(res, { ok: true, actions, error: lastError })
           if (p === '/info') return send(res, { ok: true, ...infoView() })
           if (p === '/probe') return send(res, { ok: true, path: p, note: 'non-/api prefix served by plugin' })
