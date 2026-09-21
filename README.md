@@ -58,12 +58,12 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ```json
 {
-  "dataDir": "D:\\DSH\\.scratch\\weixin-bridge",
-  "cwd": "D:\\DSH",
-  "vault": "D:\\MyBrain\\Company-Brain",
+  "dataDir": "<你的数据目录，留空则用 $DSH_HOME/wxbridge>",
+  "cwd": "<默认工作区，留空则用宿主启动目录>",
+  "vault": "<可选：Obsidian 知识库绝对路径>",
   "intervalMs": 300000,
   "staleMs": 300000,
-  "acp": { "preset": "second-brain", "enabled": true, "permPolicy": "allow" }
+  "acp": { "preset": "<预设 id，留空跟随 DSH 默认预设>", "enabled": true, "permPolicy": "allow" }
 }
 ```
 
@@ -135,6 +135,10 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ## 最近变更
 
+- **1.0.5**：**首次使用不再"启动不了"** —— 新用户还没有微信凭据时，桥此前会在启动阶段直接抛错退出；
+  现在改为照常启动、进入 `wait-credentials` 状态并提示「先在面板扫码配对」，**配对写入凭据后自动接手、
+  无需重启**（实测：无凭据启动 → 写凭据 → 12 秒内 phase 转 poll）。另：删掉包内写死某台机器路径的
+  `bridge-watchdog.ps1`（无运行时引用），并把 README 的配置示例改成中性占位。
 - **1.0.4**：修「启动了却没起来」的三个沉默原因 —— ① 被拉起的桥的 stdout/stderr 以前被丢弃
   （现在落 `<dataDir>/bridge-standalone.log`）；② 单实例锁只看 pid 存在，Windows pid 复用会让新实例
   **静默退出**（现在要求「pid 活着 **且** 心跳新鲜 120s」，否则接管并打印原因）；
