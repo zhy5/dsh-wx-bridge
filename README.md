@@ -135,6 +135,11 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ## 最近变更
 
+- **1.0.4**：修「启动了却没起来」的三个沉默原因 —— ① 被拉起的桥的 stdout/stderr 以前被丢弃
+  （现在落 `<dataDir>/bridge-standalone.log`）；② 单实例锁只看 pid 存在，Windows pid 复用会让新实例
+  **静默退出**（现在要求「pid 活着 **且** 心跳新鲜 120s」，否则接管并打印原因）；
+  ③ 新增 `GET /wxbridge/bridge-log`，面板「启动/重启」后会自动回读桥的启动输出。
+  （另：宿主内嵌 keeper 是**只观测**，不会自愈；要"死了自动拉起"需装独立 keeper。）
 - **1.0.3**：**配对二维码不再依赖用户环境** —— 此前宿主半靠 `require.resolve('qrcode')` 在用户 profile 里
   找那个包（本包 `dependencies` 为空），干净安装的机器渲染不出二维码、只剩"备用链接"；
   现在把 `qrcode@1.5.4` 的编码核心与 `dijkstrajs@1.0.3`（均 MIT）vendored 进 `lib/vendor/`，
