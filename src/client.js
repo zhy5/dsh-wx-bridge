@@ -153,7 +153,7 @@ function Panel() {
       R.createElement('pre', { style: { margin: 0, padding: '8px 10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '12px', overflow: 'auto' } }, pair.token + ' /help')) : null,
     note ? R.createElement('pre', { style: { margin: '8px 0 0 0', padding: '8px 10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '11px', overflow: 'auto', maxHeight: '160px' } }, note) : null,
     R.createElement('p', { style: { ...dim, marginTop: '10px' } },
-      '插件 v0.0.4｜数据来自 /wxbridge/status（宿主半实时读桥的心跳与状态文件）',
+      '插件 v0.0.5｜数据来自 /wxbridge/status（宿主半实时读桥的心跳与状态文件）',
       R.createElement('a', { href: '#', onClick: (e) => { e.preventDefault(); setShowRaw(!showRaw) }, style: { marginLeft: '8px', color: '#7aa2f7' } }, showRaw ? '收起原始 JSON' : '查看原始 JSON')),
     showRaw ? R.createElement('pre', { style: { margin: '8px 0 0 0', padding: '10px', borderRadius: '8px', background: 'rgba(127,127,127,.12)', fontSize: '11px', overflow: 'auto', maxHeight: '200px' } }, JSON.stringify(j || {}, null, 1)) : null
   )
