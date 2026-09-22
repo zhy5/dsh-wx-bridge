@@ -1,4 +1,4 @@
-# @zmainer/wxbridge
+# @zmainer/dsh-wx-bridge
 
 DSH（DeepSeek Harness）插件：把**手机微信**接到本机 DSH，让微信消息驱动本机执行任务。
 
@@ -22,11 +22,17 @@ DSH（DeepSeek Harness）插件：把**手机微信**接到本机 DSH，让微�
 
 ## 安装
 
+> **改名说明**：本插件原名 `@zmainer/wxbridge`，自 1.0.8 起改名为 **`@zmainer/dsh-wx-bridge`**
+> （旧包已弃用，仅保留历史版本）。插件**内部标识仍是 `wxbridge`**（cordis 插件 id、设置页面板 id、
+> HTTP 路由前缀 `/wxbridge/*` 均不变），所以迁移只需换包名，配置与数据目录都不用动。
+
+
+
 ```bash
-dsh plugin --profile <profile> add @zmainer/wxbridge
+dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 ```
 
-装完确认 profile 的 `package.json` 里 `dsh.profile.bundles` 含 `@zmainer/wxbridge`（pnpm 因被忽略的构建脚本非零退出时，这一步会被跳过，需手工追加）。
+装完确认 profile 的 `package.json` 里 `dsh.profile.bundles` 含 `@zmainer/dsh-wx-bridge`（pnpm 因被忽略的构建脚本非零退出时，这一步会被跳过，需手工追加）。
 
 ## 预设（agent preset）
 
