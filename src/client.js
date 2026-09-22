@@ -263,9 +263,12 @@ function Panel() {
   const rows = [
     ['桥状态', state + '（' + (b.phase || 'n/a') + '）'],
     ['进程', b.pid ? ('pid ' + b.pid + '｜心跳 ' + (b.ageSec === null ? 'n/a' : b.ageSec + 's 前')) : '无'],
-    ['运行时入口', b.runtimeBin
-      ? (b.runtimeBin + (b.runtimeBinOk ? '' : '（⚠️ 文件不存在）'))
-      : '⚠️ 未解析（手机对话会失败，请设置 dshBin）'],
+    // 字段缺失 ≠ 解析失败：升级了包但还没重启宿主时，宿主半仍是旧版、不上报这个字段。
+    ['运行时入口', b.runtimeBin === undefined
+      ? '—（宿主半未上报；重启宿主后显示）'
+      : (b.runtimeBin
+        ? (b.runtimeBin + (b.runtimeBinOk ? '' : '（⚠️ 文件不存在）'))
+        : '⚠️ 未解析（手机对话会失败，请设置 dshBin）')],
     ['数据目录', b.dataDir || 'n/a'],
     ['默认工作区', b.cwd || 'n/a'],
   ]
