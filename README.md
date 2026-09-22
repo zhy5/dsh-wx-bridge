@@ -147,6 +147,17 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 ## 最近变更
 
+- **1.0.12**：**支持图片识别**（用户要求）——
+  ① 微信里的图片会被下载并解密（协议：`image_item.media.encrypt_query_param/full_url` + `aes_key`，
+  走 `https://novac2c.cdn.weixin.qq.com/c2c/download`，**AES-128-ECB** 解密），落到 `<数据目录>/media/`；
+  ② 随后把**本地路径**交给 DSH 会话，agent 用内置的 `read_image` 工具看图后回答用户——
+  也就是说"认图"用的是**宿主自己的多模态模型**（本机默认 `deepseek-flash` 声明 `inputModalities: [text, image]`，
+  实测能准确描述图片内容）；
+  ③ **语音**：平台自带转写文本（`voice_item.text`）→ 当普通文本任务处理；
+  ④ 其它类型仍回提示，并把**原始条目**落进 `<数据目录>/media/inbound-raw.jsonl` 便于后续适配；
+  ⑤ 排障：`image-saved` / `image-fetch-failed` 两条日志 + `--selftest-media <item.json>` 可离线回放取图路径。
+  **注意**：认图要求当前模型支持图像输入——若用 `/model` 切到纯文本模型（如 `deepseek-v4-flash`、`deepseek-v4-pro`），
+  agent 会明确回答"看不到"；切成多模态模型即可。CDN 地址可用配置 `cdnBaseUrl` 覆盖。
 - **1.0.11**：三条体验/正确性修复（均来自用户反馈）——
   ① **非文本消息不再静默丢弃**：图片/语音/表情/文件此前是 `if (!from || !text) return` 直接丢弃，
   连回执都没有（用户只看到"发了没反应"）；现在会回一句「只认文字消息」并把条目类型记进日志
