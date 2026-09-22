@@ -357,7 +357,7 @@ function Panel() {
       btn('启动', 'start', !b.pidOk), btn('停止', 'stop', false, null, 'danger'), btn('重启', 'restart'),
       btn('体检', 'tick'), btn('扫码配对', 'qr/start', true), btn('归组未分组会话', 'scan')),
     R.createElement('p', { style: { ...dim, margin: '0 0 10px 0' } },
-      '提示：在手机微信里给机器人发任何文本即可驱动本机；发 /help 看指令（/预设、/model、/sessions、/new、/ws、/status、/task、/cancel）。'),
+      '提示：手机微信里发文本派活；也可以直接发图片 / 文件（Excel、Word、PDF…）——我先存到本机，再告诉我要做什么。发 /help 看指令（/预设、/model、/sessions、/new、/ws、/status、/task、/files、/cancel）。'),
 
     qrNode,
 
