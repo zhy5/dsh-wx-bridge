@@ -147,6 +147,14 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 ## 最近变更
 
+- **1.0.13**：修「`/model` 回『模型目录暂时不可用』」（用户反馈）——
+  模型/推理强度目录是**纯内存**的，且只在 `session/new` 分支填充；而 peer 一旦有会话（正常使用后的必然状态）
+  就走 `session/resume` 或"本进程已挂载"分支，**这两个分支把上游返回的 `configOptions` 丢掉了**，
+  于是 `/model` 永远读到空目录。现在：① `resume` 的返回接住；② `set_config_option` 的返回也带完整目录，
+  `applyPeerConfig` 顺手吸收（覆盖"已挂载"分支）；③ 目录**落盘 `state.json`** 并在启动时回读
+  （桥重启后立刻可用）；④ 空目录文案改成可操作的（并提示 `/new` 或直接 `provider/model`）；
+  ⑤ `/status` 显示目录条数，新增 `--selftest-catalog [sessionId]` 一次看清来源。
+  上游三处返回同构（`@deepseek-ai/dsh-acp`：`session/new` / `session/resume` / `session/set_config_option`）。
 - **1.0.12**：**支持图片识别**（用户要求）——
   ① 微信里的图片会被下载并解密（协议：`image_item.media.encrypt_query_param/full_url` + `aes_key`，
   走 `https://novac2c.cdn.weixin.qq.com/c2c/download`，**AES-128-ECB** 解密），落到 `<数据目录>/media/`；
