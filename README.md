@@ -78,6 +78,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | `dataDir` | 桥的状态/日志/工作目录 | `$DSH_HOME/wxbridge` |
 | `cwd` | 微信任务的默认工作目录 | 宿主启动目录 |
 | `vault` | Obsidian 知识库绝对路径（可选，供提示词模板占位符使用） | 空 |
+| `dshBin` | DSH 运行时入口（`<安装目录>/resources/dsh-runtime/lib/bin.js`）。**留空＝五级自动探测**：显式参数/环境变量 → 宿主自证快照 → PATH/npm 全局 → 桌面安装目录扫描 → 运行中进程嗅探 | 自动 |
 | `intervalMs` / `staleMs` | 自检间隔 / 心跳判新阈值 | 300000 |
 | `prompt` | 手机任务的**固定前置提示词**（兜底路径用；留空 = 不加任何前缀） | 空 |
 | `acp.enabled` | 关掉 ACP 路径（退回一次性 headless） | true |
@@ -146,6 +147,16 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 ## 最近变更
 
+- **1.0.9**：修「手机发消息永远没答复 / 5 分钟后才报 ACP 超时」——
+  根因是**运行时入口解析不到**（桌面端装在非标准目录时三级探测全部落空），ACP 子进程拿到空路径，
+  而 `node "" --profile acp` 会进入「读 stdin」模式：**不回应协议、也不退出**，只能等满超时。
+  ① `dshBin` 改为**五级解析**：显式参数/环境变量 → **宿主自证快照**（宿主进程自己就是 `<runtime>/lib/bin.js`，
+  每次启动写 `<dataDir>/host-runtime.json`）→ PATH/npm 全局 → 桌面安装目录扫描（`%LOCALAPPDATA%\Programs\*`、
+  `Program Files*`）→ **运行中进程嗅探**（从别的 DSH 进程命令行里取 `dsh-runtime\lib\bin.js`）；
+  ② **空入口快速失败**：ACP 入口不存在直接报错（不再空跑 5 分钟），一次性兜底路径也不再盲试 `spawn('dsh')`，
+  报错文案直接给出该填什么；
+  ③ 独立 keeper 每轮自检补读快照/配置 —— 改好配置**不必重启 keeper**；
+  ④ 面板诊断新增「运行时入口」一行，`node lib/kernel/bridge.mjs --selftest-runtime` 一次看全解析链。
 - **1.0.8**：手机指令可用性打磨 ——
   ① `/help` 重写：按「看状态 / 管任务 / 会话 / 档位模型 / 工作区 / 权限」分组，每条写清**作用**；
   ② `/task` 带**进度**（已跑多久、最近在用哪个工具、多久之前），不再只显示"running"；

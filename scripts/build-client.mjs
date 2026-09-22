@@ -28,7 +28,7 @@ mkdirSync(join(root, 'lib'), { recursive: true })
 writeFileSync(join(root, 'lib', 'client.js'), out)
 console.log('built lib/client.js (' + out.length + ' bytes) id=' + pkg.name)
 
-for (const f of ['bridge.mjs', 'keeper.mjs', 'second-brain-contract.txt', 'acp.mjs', 'acp-preset-shim.mjs', 'secure.mjs']) {
+for (const f of ['bridge.mjs', 'keeper.mjs', 'second-brain-contract.txt', 'acp.mjs', 'acp-preset-shim.mjs', 'acp-overlay.yml', 'acp-overlay-chat.yml']) {
   const p = join(root, 'lib', 'kernel', f)
   if (!existsSync(p)) throw new Error('kernel artifact missing: ' + p)
   console.log('kernel ok: lib/kernel/' + f + ' (' + readFileSync(p).length + ' bytes)')
