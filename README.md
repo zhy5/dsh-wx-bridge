@@ -107,6 +107,11 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ## 安全基线
 
+- **权限预设（1.0.7 起为 `danger-full-access`）**：手机端**没有可应答审批的界面**，
+  而 DSH 的审批在无应答者时 fail-closed → 任何需要审批的操作都会直接失败。
+  因此本插件把**手机通道**的权限预设放到最宽；**这等于把本机交给能驱动该机器人的人**，
+  请配合白名单/凭据保管使用。收紧办法：叠层里 `permission.defaultPreset` 改
+  `workspace-write` 或 `read-only`（后者只读）。
 - 发送者白名单（TOFU）+ 一次性登记 token；未登记静默丢弃。
 - 子进程使用**专用 `DSH_HOME`**（`dataDir/dsh-home`），权限 `workspace-write`，**只拿模型密钥、不含微信 token**。
 - 状态文件原子写 + SHA256 校验，校验失败即隔离为 `.tampered-*`。
@@ -135,6 +140,13 @@ dsh plugin --profile <profile> add @zmainer/wxbridge
 
 ## 最近变更
 
+- **1.0.7**：**手机通道不再被审批卡死** —— `dsh-acp` 只应答**带 `callId` 的工具审批**；
+  沙箱升级类审批（如写工作区之外的路径）会 `next()` 转给桌面端弹窗，而手机端没有可应答的界面 →
+  按 "fail-closed" 直接**执行失败**（其他用户实测）。现在把通道的权限预设设为 **`danger-full-access`**
+  （叠层 `permission.defaultPreset`），手机侧新增 `/权限` 查看；实测：让 ACP 会话往工作区之外写文件，
+  **权限请求帧 = 0**、一次成功。
+  ⚠️ 这是**放宽**：该通道上的一切操作不再询问。要收紧就把叠层里的 `defaultPreset` 改成
+  `workspace-write`（默认，写工作区之外会问）或 `read-only`。
 - **1.0.6**：日志不再误导 —— `bridge-standalone.log` 是追加写的，以前面板直接 tail，
   会把**上一次尝试的崩溃**当成这一次的问题（用户实测："为什么还有 error 日志"）。
   现在每次启动前由 keeper 写一条分隔线（时间 + kernel 版本 + `data`/`cwd`/`detached` 参数），

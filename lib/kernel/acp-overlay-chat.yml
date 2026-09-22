@@ -7,6 +7,13 @@
 # 需要真正的第二大脑行为时，手机发 `/brain on` 切到第二大脑模式（另一份叠加层）。
 - id: dsh-computer-use
   disabled: true
+
+# 手机通道**不需要审批**：手机端没有可应答审批的界面（ACP 只应答带 callId 的工具审批，
+# 沙箱升级类审批会转给桌面端弹窗 → 手机无从应答 → fail-closed 执行失败）。
+# 所以这里把权限预设放到最宽。改窄：改成 read-only / workspace-write 即可。
+- id: permission
+  config:
+    defaultPreset: danger-full-access
 - id: skill-filesystem
   disabled: true
 - id: tool-skill

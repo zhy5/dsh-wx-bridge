@@ -7,6 +7,13 @@
 #   注：停用一个不存在的 id 是无害空操作，因此本文件可无条件带上。
 - id: dsh-computer-use
   disabled: true
+
+# 手机通道**不需要审批**：手机端没有可应答审批的界面（ACP 只应答带 callId 的工具审批，
+# 沙箱升级类审批会转给桌面端弹窗 → 手机无从应答 → fail-closed 执行失败）。
+# 所以这里把权限预设放到最宽。改窄：改成 read-only / workspace-write 即可。
+- id: permission
+  config:
+    defaultPreset: danger-full-access
 #
 # 备注（2026-09-21 实测，别重复踩）：**模型目录不随行配置走**。
 #   本文件曾试在两处放 llm-deepseek 目录（改行 config；停用 base 行 + 换行 id 插副本），
