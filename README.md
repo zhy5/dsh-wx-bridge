@@ -160,6 +160,39 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 其余任意文本 → 交给 DSH 执行。
 
+## 常见问题 / Troubleshooting
+
+### 插件管理里点「更新」报 `Cannot switch a non-link plugin directory`
+
+```text
+更新失败: dsh-wx-bridge — 更新失败，且更新前的构建未能验证恢复
+（Cannot switch a non-link plugin directory: <...>\profiles\web
+ode_modules\@zmainer\dsh-wx-bridge）
+```
+
+**含义**：桌面端的插件更新是**事务式**的——它把 `<profile>/node_modules/<包名>` 当作一个**链接**，
+更新时把这个链接从旧版本"切"到新版本；而该位置现在是**普通目录**（文件是被复制进去的，不是链接），
+无法切换 ⇒ 更新失败并回滚，回滚时又验证不了"更新前的构建已恢复"，于是提示检查该 profile 再重启。
+
+**原因**：该 profile 里的本插件**不是通过市场/CLI 的链接式安装装上去的**（手工复制、旧版本管理器、
+或中途失败留下的目录都会这样）。"更新"走链接式管理，两边形态不一致就会撞上这个错。
+
+**修复（不影响任何配置与数据）**：
+
+1. **关闭 DSH 桌面端**（避免文件占用）；
+2. 删除或改名这个目录（注意真实路径里有 `\@zmainer\`，报错信息里可能少个反斜杠）：
+   `<harness home>\profiles\<profile>
+ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳妥；
+3. **重启桌面端**，在插件管理里**重新安装**（不是"更新"）；装好后可删掉 `.bak`；
+4. 想用命令行装：`dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge@latest`（pnpm 会建立链接式安装），
+   然后重启宿主；
+5. 配置与数据**不在 profile 里**，所以重装/换安装方式都不会丢：
+   配置在 `<DSH_HOME>/wxbridge/config.json`、数据在配置里的 `dataDir`；插件的 id、路由前缀、
+   配置目录名都没变过。
+
+**避免复发**：在一个 profile 上**只用一个安装通道**（要么一直用市场，要么一直用 CLI），
+不要手工复制文件进 `node_modules`，也不要在两个通道之间来回切。
+
 ## 最近变更
 
 - **1.0.14**：**文件/图片消息：先收下 → 反向提问 → 第二句话触发**（用户设计拍板）——
