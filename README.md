@@ -266,6 +266,10 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.6**：修 **1.1.4 引入的回归** —— 1.1.4 把 `let chatOverlayPath` 的声明连同旧函数一起换掉了，
+  于是**真的走到「对话档」时会抛 `ReferenceError: chatOverlayPath is not defined`**（写成 1.1.4 时自测
+  只覆盖了纯函数与文本生成，没跑到"取叠层路径"这一步，所以没被发现）。补回声明并加 `--print-config` 的
+  `overlays.chatOverlay` 断言位：现在它会如实指向生成的 `acp-overlay-chat.gen.yml`（内含当前 `acp.permPreset`）。
 - **1.1.5**：新增只读自检 `--print-config` —— 一条命令看清桥**实际认到**的配置链（dataDir / 宿主 home /
   ACP home / 子进程 home / vault / 契约 / 预设 / 审批策略 / 权限预设 / 两个叠层路径 / 推送 CLI 与 outbox），
   不启动主循环、不抢实例锁、不发网络请求。多 home 环境下"我改的 config 是不是桥在用的那份"用它一眼可辨。
