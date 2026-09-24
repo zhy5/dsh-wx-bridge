@@ -229,7 +229,7 @@ echo "来自管道的长文本" | node "<dataDir>/wxpush.mjs" --stdin
 | Node | **`>=22.19.0`**（`package.json` 的 `engines`）：会话文件是**多帧 zstd**，逐帧解压用到 `node:zlib` 的 `zstdDecompressSync`。桌面端自带运行时（本机实测 v26）与系统 Node（本机 v22.19）都验证过 |
 | 操作系统 | **Windows 已实测**（进程树终止用 `taskkill /T /F`；运行时入口探测含 `%LOCALAPPDATA%\Programs\*` 扫描、PID 复用判断）。macOS / Linux **未实测**：内核是纯 Node，但上述几处是 Windows 实现，跨平台请先跑 `node lib/kernel/bridge.mjs --selftest-runtime` |
 | 依赖 | **零运行时依赖**（只用 Node 内建模块）；不依赖任何 `@deepseek-ai/*` 包（宿主能力通过 `ctx.inject` 取用，缺失即降级） |
-| 自测 | `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
+| 自测 | **`--print-config`（只读：打印实际配置链）** / `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
 
 ## 常见问题 / Troubleshooting
 
@@ -266,6 +266,12 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.5**：新增只读自检 `--print-config` —— 一条命令看清桥**实际认到**的配置链（dataDir / 宿主 home /
+  ACP home / 子进程 home / vault / 契约 / 预设 / 审批策略 / 权限预设 / 两个叠层路径 / 推送 CLI 与 outbox），
+  不启动主循环、不抢实例锁、不发网络请求。多 home 环境下"我改的 config 是不是桥在用的那份"用它一眼可辨。
+  运行手册侧同步记录了一条机制事实：ACP 的权限预设**自带审批策略**（`workspace-write → approval: ask`、
+  `danger-full-access → approval: never`，共同组成 `dsh-permission-presets` 里的预设），
+  所以"把预设收紧"天然就会产生可被微信应答的审批。
 - **1.1.4**：修「生成物把新预设静默顶掉」——「对话档」的 ACP 叠层（`acp-overlay-chat.gen.yml`）是**磁盘缓存**，
   改 `acp.permPreset` 或模板后不重启桥就会继续用旧的（本机实测：模板已是 `workspace-write`，磁盘上仍是
   `danger-full-access` ⇒ 收紧预设被无声抵消）。现在每次生成都重写、不再依赖进程内缓存，
