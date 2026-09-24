@@ -1,6 +1,6 @@
 {
   "name": "@zmainer/dsh-wx-bridge",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "type": "module",
   "main": "./lib/index.js",
   "dsh": {
