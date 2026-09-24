@@ -229,7 +229,7 @@ echo "来自管道的长文本" | node "<dataDir>/wxpush.mjs" --stdin
 | Node | **`>=22.19.0`**（`package.json` 的 `engines`）：会话文件是**多帧 zstd**，逐帧解压用到 `node:zlib` 的 `zstdDecompressSync`。桌面端自带运行时（本机实测 v26）与系统 Node（本机 v22.19）都验证过 |
 | 操作系统 | **Windows 已实测**（进程树终止用 `taskkill /T /F`；运行时入口探测含 `%LOCALAPPDATA%\Programs\*` 扫描、PID 复用判断）。macOS / Linux **未实测**：内核是纯 Node，但上述几处是 Windows 实现，跨平台请先跑 `node lib/kernel/bridge.mjs --selftest-runtime` |
 | 依赖 | **零运行时依赖**（只用 Node 内建模块）；不依赖任何 `@deepseek-ai/*` 包（宿主能力通过 `ctx.inject` 取用，缺失即降级） |
-| 自测 | `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
+| 自测 | `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
 
 ## 常见问题 / Troubleshooting
 
@@ -266,6 +266,11 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.4**：修「生成物把新预设静默顶掉」——「对话档」的 ACP 叠层（`acp-overlay-chat.gen.yml`）是**磁盘缓存**，
+  改 `acp.permPreset` 或模板后不重启桥就会继续用旧的（本机实测：模板已是 `workspace-write`，磁盘上仍是
+  `danger-full-access` ⇒ 收紧预设被无声抵消）。现在每次生成都重写、不再依赖进程内缓存，
+  并把改写逻辑抽成纯函数 `buildChatOverlayText()`；新增 `--selftest-overlays`（模板预设 == 配置、
+  生成文本带推送命令、`defaultPreset` 行不含旧值、persona 缩进未破坏，四项断言全过）。
 - **1.1.3**：新增 `--selftest-acp-approval` —— 把审批卡 ↔ ACP `session/request_permission` 的**线上契约**
   变成可离线跑的断言：按 `acp.mjs` 实际收发的帧形状构造四类选项集（三选一 / 允许+拒绝 / 只有允许 / 空），
   验证「批准 / 拒绝」映射到的 `optionId`、以及应答负载（`{outcome:{outcome:'selected',optionId}}`，
