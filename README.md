@@ -266,6 +266,11 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.1**：**默认权限预设从 `danger-full-access` 收紧为 `workspace-write`**——审批能在微信里答了以后，
+  "手机端无人可答审批"就不再是把通道放到最宽的理由。行为变化：工作区之外的写与提权会先在微信里弹审批卡
+  （回「批准 / 拒绝」），要旧行为就把 `acp.permPreset` 设回 `danger-full-access`，要更严设 `read-only`。
+  同时把子进程 home 的 `settings.yaml` / headless profile 补丁里写死的 `workspace-write` 接到同一个配置项，
+  并修好「对话模式」生成叠层的 `defaultPreset` 替换（此前只在模板写死旧值时才替换）。
 - **1.1.0**：**微信内审批应答 + 主动推送**（两条都是用户要求）——
   ① **审批**：ACP 的 `session/request_permission` 不再由桥按固定策略静默回答，而是把卡片推到微信
   （选项带编号），回「批准 / 拒绝 / 1 / 2」即映射成 ACP 的 `optionId` 回去；**超时 120 秒按拒绝**
