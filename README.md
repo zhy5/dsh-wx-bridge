@@ -97,6 +97,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | `acp.permPolicy` | 审批策略：`ask`（默认，推到微信等回复）/ `allow`（自动批准）/ `reject`（一律拒绝） | ask |
 | `acp.permPreset` | 手机通道权限预设（写进 ACP 叠层）：`workspace-write`（默认）/ `read-only` / `danger-full-access`。越界的写与提权会在微信里弹审批卡 | workspace-write |
 | `acp.approvalTimeoutMs` | 审批卡等待时长（超时按拒绝） | 120000 |
+| `acp.promptTimeoutMs` | **一轮 ACP 提示词的等待上限**（与任务超时分开）。超时**不回落**：那一轮仍在跑，跑完把结果补发 | 900000 |
 | `acp.patchAcp` | 是否允许给已装 `dsh-acp` 打预设补丁 | true |
 
 环境变量：`WXBRIDGE_DATA`、`BRIDGE_CWD`、`BRAIN_VAULT`、`DSH_BIN`、`BRIDGE_HOST_HOME`、`WXBRIDGE_ACP=off`；
@@ -265,6 +266,14 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 不要手工复制文件进 `node_modules`，也不要在两个通道之间来回切。
 
 ## 最近变更
+
+- **1.1.7**：**超时 ≠ 失败**（用户反馈「为什么第二预设的提示词又是拼接我的提问发给 agent」）——
+  原先 `session/prompt` 超过 5 分钟就按失败处理：`runViaAcp` 的 catch 一律 `return null` → 桥走兜底（宿主→headless），
+  而**兜底路径的提示词天生是拼接的**（契约+历史+本轮），于是同一轮任务被**重跑一遍**、用户在会话列表里看到的就是那条拼接提示词。
+  修法：① 超时**不回落**——`keepAliveOnTimeout` 保留 pending，迟到帧走 `onLate` 把结果补发到微信；
+  ② 两个超时分开：`acp.promptTimeoutMs`（默认 15 分钟）vs `TASK_TIMEOUT_MS`（5 分钟，兜底路径真杀子进程）；
+  ③ 真·通道不可用要回落时，先 `session/cancel` 掐掉那一轮，并在回复里明说「本轮走了兜底路径」。
+  离线自测 `--selftest-acp-timeout` 8/8（分类 + keepAlive 迟到帧 + 对照丢弃）。
 
 - **1.1.6**：修 **1.1.4 引入的回归** —— 1.1.4 把 `let chatOverlayPath` 的声明连同旧函数一起换掉了，
   于是**真的走到「对话档」时会抛 `ReferenceError: chatOverlayPath is not defined`**（写成 1.1.4 时自测
