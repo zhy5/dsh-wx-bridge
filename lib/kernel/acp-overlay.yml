@@ -8,9 +8,10 @@
 - id: dsh-computer-use
   disabled: true
 
-# 手机通道**不需要审批**：手机端没有可应答审批的界面（ACP 只应答带 callId 的工具审批，
-# 沙箱升级类审批会转给桌面端弹窗 → 手机无从应答 → fail-closed 执行失败）。
-# 所以这里把权限预设放到最宽。改窄：改成 read-only / workspace-write 即可。
+# 通道权限预设（config.acp.permPreset，默认 danger-full-access）：
+# 收紧到 workspace-write / read-only 后，需要审批的操作会把审批卡推到微信——
+# 回「批准 / 拒绝」（或 1 / 2）即可，120 秒未回按拒绝处理（fail-closed）。
+# 默认留在最宽，是因为 ~/.m2 之类的写操作会被 workspace-write 拦掉（maven 编译直接失败）。
 - id: permission
   config:
     defaultPreset: danger-full-access

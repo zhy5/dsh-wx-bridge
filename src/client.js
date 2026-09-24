@@ -116,6 +116,8 @@ function Panel() {
   const [presets, setPresets] = R.useState([])
   const [presetSel, setPresetSel] = R.useState('')
   const [allowlist, setAllowlist] = R.useState('strict')
+  const [approval, setApproval] = R.useState('ask')
+  const [pushText, setPushText] = R.useState('')
   const [presetState, setPresetState] = R.useState(null)
   useWxStyle()
 
@@ -145,8 +147,42 @@ function Panel() {
       .then((r) => r.json())
       .then((d) => { if (alive) setPair(d) })
       .catch(() => {})
+    fetch('/wxbridge/approval', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (alive && d && typeof d.approval === 'string') setApproval(d.approval) })
+      .catch(() => {})
     return () => { alive = false }
   }, [])
+
+  const saveApproval = async (mode) => {
+    setBusy('approval')
+    try {
+      const r = await fetch('/wxbridge/approval', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      })
+      const d = await r.json()
+      if (typeof d.approval === 'string') setApproval(d.approval)
+      setNote(d.ok
+        ? ('审批策略已切到 ' + mode + '：' + (d.note || ''))
+        : ('切换失败：' + (d.error || '未知错误')))
+    } catch (e) { setNote('切换失败：' + String(e && e.message ? e.message : e)) } finally { setBusy('') }
+  }
+
+  const sendPush = async () => {
+    const text = String(pushText || '').trim()
+    if (!text) { setNote('先写一条要推送的内容。'); return }
+    setBusy('push')
+    try {
+      const r = await fetch('/wxbridge/push', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const d = await r.json()
+      setNote(d.ok ? ('已排队推送：' + (d.note || '')) : ('推送失败：' + (d.error || '未知错误')))
+      if (d.ok) setPushText('')
+    } catch (e) { setNote('推送失败：' + String(e && e.message ? e.message : e)) } finally { setBusy('') }
+  }
 
   const loadPresets = () => fetch('/wxbridge/presets', { cache: 'no-store' })
     .then((r) => r.json())
@@ -443,6 +479,51 @@ function Panel() {
           },
         }, busy === 'allowlist' ? '处理中…' : '保存并重启桥'),
         R.createElement('span', { style: dim }, '当前：' + allowlist + '（改完会写入 config.json 并重启桥，立即生效）')),
+    ),
+
+    R.createElement('div', { style: { marginTop: '14px', paddingTop: '12px', borderTop: subtle } },
+      R.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' } },
+        wxBubbles(16, WX, skin.dark ? '#0d1220' : '#ffffff', 'transparent'),
+        R.createElement('span', { style: { fontSize: '13px', fontWeight: 600 } }, '审批策略'),
+        R.createElement('span', { style: { fontSize: '11px', color: dim.color } }, '（需要审批的操作怎么答）')),
+      R.createElement('select', {
+        value: approval, onChange: (e) => setApproval(e.target.value),
+        style: { ...skin.control, width: '100%', boxSizing: 'border-box', padding: '7px 10px', borderRadius: '8px', fontSize: '12px' },
+      }, [
+        R.createElement('option', { key: 'ask', value: 'ask', style: skin.option }, 'ask（默认）· 把审批卡推到微信，等你回「批准 / 拒绝」，120 秒未回按拒绝'),
+        R.createElement('option', { key: 'allow', value: 'allow', style: skin.option }, 'allow · 自动批准，不打扰你（旧行为）'),
+        R.createElement('option', { key: 'reject', value: 'reject', style: skin.option }, 'reject · 一律拒绝（需要审批的操作会失败）'),
+      ]),
+      R.createElement('div', { style: { marginTop: '8px', display: 'flex', alignItems: 'center' } },
+        R.createElement('button', {
+          className: 'wxbridge-btn', onClick: () => saveApproval(approval), disabled: !!busy,
+          style: {
+            marginRight: '10px', padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: 500,
+            cursor: busy ? 'default' : 'pointer', border: '1px solid ' + WX, background: WX, color: '#fff',
+          },
+        }, busy === 'approval' ? '处理中…' : '保存审批策略'),
+        R.createElement('span', { style: dim },
+          '当前：' + approval + '（保存在 config.json 的 acp.permPolicy；改了立即生效，不必重启）' +
+          (approval === 'ask' ? ' · 只有把通道权限预设收紧（acp.permPreset）才会真的产生审批卡' : ''))),
+    ),
+    R.createElement('div', { style: { marginTop: '14px', paddingTop: '12px', borderTop: subtle } },
+      R.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' } },
+        wxBubbles(16, WX, skin.dark ? '#0d1220' : '#ffffff', 'transparent'),
+        R.createElement('span', { style: { fontSize: '13px', fontWeight: 600 } }, '主动推送'),
+        R.createElement('span', { style: { fontSize: '11px', color: dim.color } }, '（试一下能不能推到你手机）')),
+      R.createElement('input', {
+        value: pushText, onChange: (e) => setPushText(e.target.value), placeholder: '要推到微信的一句话（例如：测试推送）',
+        style: { ...skin.control, width: '100%', boxSizing: 'border-box', padding: '7px 10px', borderRadius: '8px', fontSize: '12px' },
+      }),
+      R.createElement('div', { style: { marginTop: '8px', display: 'flex', alignItems: 'center' } },
+        R.createElement('button', {
+          className: 'wxbridge-btn', onClick: () => sendPush(), disabled: !!busy,
+          style: {
+            marginRight: '10px', padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: 500,
+            cursor: busy ? 'default' : 'pointer', border: '1px solid ' + WX, background: WX, color: '#fff',
+          },
+        }, busy === 'push' ? '发送中…' : '发一条测试推送'),
+        R.createElement('span', { style: dim }, '桥每 5 秒取件；结果在数据目录的 outbox/sent、outbox/failed')),
     ),
 
     note ? R.createElement('pre', { style: { margin: '10px 0 0 0', padding: '9px 11px', borderRadius: '10px', background: mutedBg, border: subtle, fontSize: '11px', overflow: 'auto', maxHeight: '160px' } }, note) : null,
