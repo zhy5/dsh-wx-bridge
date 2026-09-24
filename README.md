@@ -78,6 +78,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | `dataDir` | 桥的状态/日志/工作目录 | `$DSH_HOME/wxbridge` |
 | `cwd` | 微信任务的默认工作目录 | 宿主启动目录 |
 | `vault` | Obsidian 知识库绝对路径（可选，供提示词模板占位符使用） | 空 |
+| `allowlist` | 准入模式：`strict`（默认）/ `auto` / `open` —— 面板「准入模式」亦可切换 | `strict` |
 | `dshBin` | DSH 运行时入口（`<安装目录>/resources/dsh-runtime/lib/bin.js`）。**留空＝五级自动探测**：显式参数/环境变量 → 宿主自证快照 → PATH/npm 全局 → 桌面安装目录扫描 → 运行中进程嗅探 | 自动 |
 | `intervalMs` / `staleMs` | 自检间隔 / 心跳判新阈值 | 300000 |
 | `prompt` | 手机任务的**固定前置提示词**（兜底路径用；留空 = 不加任何前缀） | 空 |
@@ -96,7 +97,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 1. 宿主启动后，桥会在 `dataDir/auth-token.txt` 生成一次性登记 token（ACL 限本人）。
 2. 在手机微信里把该 token 发给机器人（例如 `<token> /help`）完成登记；之后该设备免 token。
-3. 未登记的发送者会被静默丢弃并写审计日志。
+3. 未登记的发送者**不会被执行**：桥回一次提示（告诉对方怎么登记、或提示你去面板切 `auto`）并写审计日志。
 4. 面板「扫码配对」可直接出二维码（需本机 `qrcode` 可用；扫码会**重新绑定** ClawBot）。
 
 ## HTTP 接口（宿主半）
@@ -108,6 +109,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | GET | `/wxbridge/log` | 宿主半操作日志（最近 60 条） |
 | GET | `/wxbridge/presets` | **预设名册**（id/name/description）+ 当前选中值 |
 | POST | `/wxbridge/preset` | 写入预设选择（`{ "preset": "<id|空>" }`） |
+| POST | `/wxbridge/allowlist` | 写入准入模式（`{ "mode": "strict|auto|open", "restart": true }`） |
 | POST | `/wxbridge/start` · `/stop` · `/restart` · `/tick` | 桥生命周期（`tick` = 立即体检并按需自愈） |
 | POST | `/wxbridge/config` | 写配置文件（`dataDir`/`cwd`/`vault`/`intervalMs`/`staleMs`/`prompt`） |
 | POST | `/wxbridge/task` · `/scan` · `/attach` | 宿主内执行 / 会话归组 |
@@ -116,10 +118,12 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 - **权限预设（1.0.7 起为 `danger-full-access`）**：手机端**没有可应答审批的界面**，
   而 DSH 的审批在无应答者时 fail-closed → 任何需要审批的操作都会直接失败。
-  因此本插件把**手机通道**的权限预设放到最宽；**这等于把本机交给能驱动该机器人的人**，
-  请配合白名单/凭据保管使用。收紧办法：叠层里 `permission.defaultPreset` 改
+  因此本插件把**手机通道**的权限预设放到最宽；**这等于把本机交给能驱动该机器人的人**——
+  所以准入默认是 `strict`（只有登记过的设备能驱动）。收紧办法：叠层里 `permission.defaultPreset` 改
   `workspace-write` 或 `read-only`（后者只读）。
-- 发送者白名单（TOFU）+ 一次性登记 token；未登记静默丢弃。
+- **准入默认 `strict`**（TOFU 白名单 + 一次性登记 token）：未登记的发送者**不执行**，但只回一次可操作提示
+  （10 分钟/人节流；提示里给出登记方式），并写审计日志。面板「准入模式」可切 `auto`（首次发言即登记）或
+  `open`（不检查，不建议）——`auto` 的边界是「谁拿到了这个机器人」，机器人被拉进群/被加好友会连带放权。
 - 子进程使用**专用 `DSH_HOME`**（`dataDir/dsh-home`），权限 `workspace-write`，**只拿模型密钥、不含微信 token**。
 - 状态文件原子写 + SHA256 校验，校验失败即隔离为 `.tampered-*`。
 - 输出审计：密钥形态脱敏、外发命令阻断、超大输出截断。
@@ -195,6 +199,15 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.0.15**：**准入默认改回 `strict`（与 README 一致）**，并把选择权交给用户——
+  起因是 awesome-dsh-plugin 的收录评审指出的一个真实矛盾：代码默认 `ALLOWLIST=auto`（**任何能给机器人发消息的人
+  首次发言即自动登记**）叠加手机通道的 `danger-full-access`（**不经审批**），等价于"任何能给它发消息的人
+  都能免审批完全控制这台机器"；而 README「安全基线」写的是"未登记静默丢弃"（那是 `strict` 的行为）。
+  现在：① 默认 `strict`（`--allowlist` / `WXBRIDGE_ALLOWLIST` / `config.json` 的 `allowlist` 均可覆盖）；
+  ② 未登记**不执行但不再静默**——回一次可操作提示（每人 10 分钟一次），告诉对方怎么登记；
+  ③ 面板新增「**准入模式**」开关（`strict`/`auto`/`open`，一键写入配置并重启桥），换号/多设备的用户
+  自己决定放开；④ README 的「安全基线」「配对」与配置表同步对齐。
+  权限预设（`danger-full-access`）与准入是两件事：前者是本通道"无法应答审批"的取舍，后者决定**谁能**驱动它。
 - **1.0.14**：**文件/图片消息：先收下 → 反向提问 → 第二句话触发**（用户设计拍板）——
   微信的文件消息带不了附言，所以插件把文件**取件**（CDN 下载 + AES-128-ECB 解密 + **按原名**落盘）后
   先反问"你想让我做什么"，等你下一句话再连同附件清单交给会话。
