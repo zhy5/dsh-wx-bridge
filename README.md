@@ -266,6 +266,12 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.2**：修 `wxpush.mjs` 的**默认数据目录解析**——原来只按 `$DSH_HOME/wxbridge` 兜底，桌面端
+  （Electron）里 `DSH_HOME` 常为空或指向另一个 home，于是消息被排进 `~/.dsh/wxbridge/outbox`，
+  而桥在 `%APPDATA%\dsh-desktop\harness\wxbridge` 取件 ⇒ **排了队没人发**（本机实测）。
+  现在顺序是：`--data-dir`/`WXBRIDGE_DATA`/`BRIDGE_DATA` → `WXBRIDGE_CONFIG` 里的 `dataDir` →
+  **本文件自己所在的目录**（桥每次启动都把 CLI 刷到 `<dataDir>/wxpush.mjs`，跟着文件走永远对）。
+  另加 `--print-dir` 便于排查「消息推到哪去了」。
 - **1.1.1**：**默认权限预设从 `danger-full-access` 收紧为 `workspace-write`**——审批能在微信里答了以后，
   "手机端无人可答审批"就不再是把通道放到最宽的理由。行为变化：工作区之外的写与提权会先在微信里弹审批卡
   （回「批准 / 拒绝」），要旧行为就把 `acp.permPreset` 设回 `danger-full-access`，要更严设 `read-only`。
