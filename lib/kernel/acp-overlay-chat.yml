@@ -8,13 +8,12 @@
 - id: dsh-computer-use
   disabled: true
 
-# 通道权限预设（config.acp.permPreset，默认 danger-full-access）：
-# 收紧到 workspace-write / read-only 后，需要审批的操作会把审批卡推到微信——
-# 回「批准 / 拒绝」（或 1 / 2）即可，120 秒未回按拒绝处理（fail-closed）。
-# 默认留在最宽，是因为 ~/.m2 之类的写操作会被 workspace-write 拦掉（maven 编译直接失败）。
+# 通道权限预设（config.acp.permPreset，默认 workspace-write）：
+# 越界（工作区之外）的写与提权会把审批卡推到微信——回「批准 / 拒绝」（或 1 / 2）即可，
+# 120 秒未回按拒绝处理（fail-closed）。要更严：read-only；要旧行为（免审批全权）：danger-full-access。
 - id: permission
   config:
-    defaultPreset: danger-full-access
+    defaultPreset: workspace-write
 - id: skill-filesystem
   disabled: true
 - id: tool-skill

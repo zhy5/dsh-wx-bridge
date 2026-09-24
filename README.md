@@ -74,7 +74,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
     "preset": "<预设 id，留空跟随 DSH 默认预设>",
     "enabled": true,
     "permPolicy": "ask",
-    "permPreset": "danger-full-access",
+    "permPreset": "workspace-write",
     "approvalTimeoutMs": 120000
   }
 }
@@ -95,7 +95,7 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | `acp.dshBin` | ACP 用的 dsh 入口（默认跟随宿主运行时，schema 才一致） | 自动 |
 | `acp.patch` | 覆盖叠层文件路径（预设档自动生成） | 插件内置 |
 | `acp.permPolicy` | 审批策略：`ask`（默认，推到微信等回复）/ `allow`（自动批准）/ `reject`（一律拒绝） | ask |
-| `acp.permPreset` | 手机通道权限预设（写进 ACP 叠层）：`danger-full-access` / `workspace-write` / `read-only`。收紧后产生的审批会在微信里问你 | danger-full-access |
+| `acp.permPreset` | 手机通道权限预设（写进 ACP 叠层）：`workspace-write`（默认）/ `read-only` / `danger-full-access`。越界的写与提权会在微信里弹审批卡 | workspace-write |
 | `acp.approvalTimeoutMs` | 审批卡等待时长（超时按拒绝） | 120000 |
 | `acp.patchAcp` | 是否允许给已装 `dsh-acp` 打预设补丁 | true |
 
@@ -127,10 +127,10 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 
 ## 安全基线
 
-- **权限预设（`acp.permPreset`，默认 `danger-full-access`）**：默认仍是最宽——手机任务常要跑 `mvn`、写
-  `~/.m2`、动工作区之外的文件，收紧到 `workspace-write` 会直接把这些操作拦掉。想要更安全就把 `acp.permPreset`
-  改成 `workspace-write` / `read-only`：**1.1.0 起审批会在微信里问你**（回「批准 / 拒绝」），不再"无应答直接失败"，
-  所以收紧是可行的取舍，而不是硬伤。
+- **权限预设（`acp.permPreset`，默认 `workspace-write`）**：手机任务默认只能写工作区；**越界的写与提权会变成
+  审批卡推到微信**，回「批准 / 拒绝」即可（1.1.0 起）。这正是默认从 `danger-full-access` 收紧的原因——
+  手机可应答审批后，不必再用"最宽权限"来绕开"无人可答"。要更严：`read-only`；要旧行为（免审批全权，
+  适合 `mvn` 写 `~/.m2` 这类高频越界任务）：`danger-full-access`。
 - **审批默认 `ask`**：需要审批的操作会把卡片推到微信等回复；**120 秒未回按拒绝**（fail-closed），
   也可发 `/审批 自动` 恢复"自动批准"、`/审批 拒绝` 变成一律拒绝。找不到归属联系人的审批一律拒绝。
 - **准入默认 `strict`**（TOFU 白名单 + 一次性登记 token）：未登记的发送者**不执行**，但只回一次可操作提示
@@ -166,8 +166,8 @@ ACP 的 `session/request_permission` 请求**必须被应答**。早先版本只
 - 同一时刻每个人只留一张卡：新卡到达会作废旧卡（避免"批准"批到过期的那张）。
 - 开关：`/审批` 看策略、`/审批 询问|自动|拒绝` 改；面板/HTTP 侧用 `POST /wxbridge/approval`。
 
-> 什么时候会真的看到审批卡？**当通道权限预设被收紧时**（`acp.permPreset=workspace-write`/`read-only`）。
-> 默认的 `danger-full-access` 不产生审批——想用这个能力，就把它改窄。
+> 什么时候会真的看到审批卡？**当通道权限预设被收紧时**——默认的 `workspace-write` 就意味着
+> "工作区之外的写 / 提权"会先问你；若不想要这种打扰，把 `acp.permPreset` 改成 `danger-full-access`。
 
 ## 主动推送（1.1.0）
 
