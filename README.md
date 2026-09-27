@@ -228,7 +228,7 @@ echo "来自管道的长文本" | node "<dataDir>/wxpush.mjs" --stdin
 | --- | --- |
 | DSH / harness | 按官方插件协议安装（`dsh.bundle` 清单 + `dsh plugin add`）；内核只用 `dsh --profile acp` 与 `--profile headless` 两个内置 profile，**不绑定某个 harness 小版本**。预设功能依赖已装 `@deepseek-ai/dsh-acp` 支持 `Config.preset`——不支持/被覆盖时自动退回宿主组合（见「预设补丁」） |
 | Node | **`>=22.19.0`**（`package.json` 的 `engines`）：会话文件是**多帧 zstd**，逐帧解压用到 `node:zlib` 的 `zstdDecompressSync`。桌面端自带运行时（本机实测 v26）与系统 Node（本机 v22.19）都验证过 |
-| 操作系统 | **Windows 已实测**（进程树终止用 `taskkill /T /F`；运行时入口探测含 `%LOCALAPPDATA%\Programs\*` 扫描、PID 复用判断）。macOS / Linux **未实测**：内核是纯 Node，但上述几处是 Windows 实现，跨平台请先跑 `node lib/kernel/bridge.mjs --selftest-runtime` |
+| 操作系统 | **Windows 已实测**（进程树终止用 `taskkill /T /F`；运行时入口探测含 `%LOCALAPPDATA%\Programs\*` 扫描、PID 复用判断）。macOS / Linux **未实测**：内核是纯 Node，但上述几处是 Windows 实现，跨平台请先跑 `node lib/kernel/bridge.mjs --selftest-runtime`。**已知限制（1.1.8 起明示）**：任务超时/取消的进程树终止走 Windows `taskkill /T /F`，macOS / Linux 下**不会真正终止子进程**（需另行接入 `process.kill`） |
 | 依赖 | **零运行时依赖**（只用 Node 内建模块）；不依赖任何 `@deepseek-ai/*` 包（宿主能力通过 `ctx.inject` 取用，缺失即降级） |
 | 自测 | **`--print-config`（只读：打印实际配置链）** / `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
 
@@ -266,6 +266,12 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 不要手工复制文件进 `node_modules`，也不要在两个通道之间来回切。
 
 ## 最近变更
+
+- **1.1.8**：修**发送回执判定**（用户反馈「日志说发了、手机没收到」）—— 判据原本只查 `ret`，
+  而 iLink 在「HTTP 200 但没投递」时回的是 `errcode`（实测 `{"errcode":-14,"errmsg":"session timeout"}`）⇒ **假成功**：
+  日志记 `sent`、推送件被归档进 `outbox/sent/`。现在 `errcode`/`ret` 任一非 0 一律抛错，回复路径如实记 `send-failed`，
+  成功回执以 `message_id` 为正标志（缺失只告警）；拉取侧（`getupdates`）遇业务码记 `getupdates-rejected`。
+  新增离线自测 `--selftest-receipt`（6 例）；§兼容性 明示 `killTree` 的平台差异。
 
 - **1.1.7**：**超时 ≠ 失败**（用户反馈「为什么第二预设的提示词又是拼接我的提问发给 agent」）——
   原先 `session/prompt` 超过 5 分钟就按失败处理：`runViaAcp` 的 catch 一律 `return null` → 桥走兜底（宿主→headless），
