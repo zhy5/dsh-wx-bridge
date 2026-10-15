@@ -112,6 +112,14 @@ function Panel() {
   const [code, setCode] = R.useState('')
   const [log, setLog] = R.useState([])
   const [showRaw, setShowRaw] = R.useState(false)
+  // 「手机对话」区：数据来自 /wxbridge/conversations（桥 state.json 只读视图）。
+  // 强制刷新机制：面板本来每 2s 轮询 /wxbridge/status；桥每次状态落盘都会重算
+  // stateChecksum（新任务入队/完成/回复/审批都会变），checksum 一变就立即重拉对话，
+  // 不必等下一次整页刷新 —— 这就是「有新任务强制刷新 wx-bridge 区域」。
+  const [conv, setConv] = R.useState(null)
+  const [convErr, setConvErr] = R.useState('')
+  const convChecksum = R.useRef(null)
+  const fetchConvRef = R.useRef(null)
   const skin = controlSkin()
   const [presets, setPresets] = R.useState([])
   const [presetSel, setPresetSel] = R.useState('')
@@ -120,6 +128,18 @@ function Panel() {
   const [pushText, setPushText] = R.useState('')
   const [presetState, setPresetState] = R.useState(null)
   useWxStyle()
+
+  const fetchConversations = async () => {
+    try {
+      const r = await fetch('/wxbridge/conversations', { cache: 'no-store' })
+      const d = await r.json()
+      if (d && d.ok) {
+        setConv(d); setConvErr('')
+        if (d.checksum) convChecksum.current = d.checksum
+      } else setConvErr(String((d && d.error) || '读不到对话数据（桥未运行？）'))
+    } catch (e) { setConvErr(String(e && e.message ? e.message : e)) }
+  }
+  fetchConvRef.current = fetchConversations
 
   R.useEffect(() => {
     let alive = true
@@ -134,6 +154,12 @@ function Panel() {
         const lg = await lr.json()
         if (!alive) return
         setJ(d); setErr(''); setLog(lg.actions || [])
+        // 状态变更探测：新任务/回复/审批都会让 stateChecksum 变化 → 立即强制刷新对话区
+        const cs = d && d.bridge ? String(d.bridge.stateChecksum || '') : ''
+        if (cs) {
+          if (convChecksum.current === null) convChecksum.current = cs
+          else if (cs !== convChecksum.current && fetchConvRef.current) void fetchConvRef.current()
+        }
       } catch (e) { if (alive) setErr(String(e && e.message ? e.message : e)) }
     }
     paint()
@@ -151,6 +177,7 @@ function Panel() {
       .then((r) => r.json())
       .then((d) => { if (alive && d && typeof d.approval === 'string') setApproval(d.approval) })
       .catch(() => {})
+    void fetchConvRef.current && fetchConvRef.current()
     return () => { alive = false }
   }, [])
 
@@ -362,6 +389,81 @@ function Panel() {
     )
   ) : null
 
+  // ── 手机对话展示：微信气泡样式；数据 = 桥 state.json 的对话历史（每人最近 50 轮）──
+  const hms = (v) => { const m = String(v || '').match(/T(\d\d:\d\d:\d\d)/); return m ? m[1] : String(v || '').slice(11, 19) }
+  const elapsedText = (v) => {
+    const t = (typeof v === 'number') ? v : Date.parse(v)
+    if (!t) return 'n/a'
+    const s = Math.max(0, Math.round((Date.now() - t) / 1000))
+    return s < 90 ? (s + 's') : (Math.round(s / 600) / 10) + 'min'
+  }
+  const peerLabel = (id) => {
+    const s = String(id || '')
+    const at = s.indexOf('@')
+    const main = at === -1 ? s : s.slice(0, at)
+    return main.length > 12 ? (main.slice(0, 4) + '…' + main.slice(-3)) : (main || '未知')
+  }
+  const TRUNC = 200
+  const convPeerNode = (p) => {
+    const bubbles = []
+    for (const h of (p.history || [])) {
+      const k = (h.at || '') + '|' + (h.u || '').length
+      // 用户气泡（右对齐，微信绿）
+      const userTime = R.createElement('div', { style: { ...dim, textAlign: 'right' } }, hms(h.at))
+      const userText = R.createElement('div', {
+        style: { padding: '7px 10px', borderRadius: '10px 10px 3px 10px', background: WX, color: '#fff', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+      }, h.u || '（空）')
+      const userWrap = R.createElement('div', { style: { maxWidth: '86%' } }, userTime, userText)
+      bubbles.push(R.createElement('div', { key: 'u' + k, style: { display: 'flex', justifyContent: 'flex-end', marginBottom: '4px' } }, userWrap))
+      // 助手气泡（左对齐；超长回复折叠成 <details>）
+      if (h.a !== undefined) {
+        const full = String(h.a)
+        let body
+        if (full.length > TRUNC) {
+          const more = R.createElement('details', { style: { marginTop: '4px' } },
+            R.createElement('summary', { style: { cursor: 'pointer', fontSize: '11px', color: WX } }, '展开全文'),
+            R.createElement('pre', { style: { margin: '4px 0 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '11px', fontFamily: 'inherit' } }, full))
+          body = R.createElement(R.Fragment, null, full.slice(0, TRUNC) + '…', more)
+        } else {
+          body = (h.a || '（空）')
+        }
+        const meta = (h.ok ? '✅' : '❌') + ' ' + hms(h.at) + (h.late ? ' · 迟到补发' : '')
+        const asstTime = R.createElement('div', { style: { ...dim, marginBottom: '2px' } }, meta)
+        const asstText = R.createElement('div', {
+          style: { ...skin.card, borderRadius: '10px 10px 10px 3px', padding: '7px 10px', fontSize: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
+        }, body)
+        const asstWrap = R.createElement('div', { style: { maxWidth: '86%' } }, asstTime, asstText)
+        bubbles.push(R.createElement('div', { key: 'a' + k, style: { display: 'flex', justifyContent: 'flex-start', marginBottom: '10px' } }, asstWrap))
+      }
+    }
+    return R.createElement('div', { key: p.peer, style: { marginBottom: '10px' } },
+      R.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' } },
+        wxBubbles(14, WX, skin.dark ? '#0d1220' : '#ffffff', 'transparent'),
+        R.createElement('span', { style: { fontSize: '12px', fontWeight: 600 } }, '微信用户 ' + peerLabel(p.peer)),
+        R.createElement('span', { style: dim }, '最近活动 ' + (p.lastSeenAt ? hms(p.lastSeenAt) : 'n/a') + (p.cwd ? ' · 工作区 ' + p.cwd : '')),
+      ),
+      (p.history || []).length === 0
+        ? R.createElement('p', { style: { ...dim, margin: '0 0 4px 0' } }, '暂无对话记录')
+        : R.createElement('div', { style: { border: subtle, borderRadius: '10px', padding: '8px' } }, bubbles)
+    )
+  }
+  const runningTasks = (conv && conv.tasks && conv.tasks.running) || []
+  const convNode = R.createElement('div', { style: { ...skin.card, borderRadius: '12px', padding: '12px', marginBottom: '10px' } },
+    R.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '8px' } },
+      wxBubbles(16, WX, skin.dark ? '#0d1220' : '#ffffff', 'transparent'),
+      R.createElement('span', { style: { fontSize: '13px', fontWeight: 600 } }, '手机对话'),
+      R.createElement('span', { style: { fontSize: '11px', color: dim.color } }, '· 来新任务/新回复自动强制刷新 · 每人最近 50 轮'),
+      R.createElement('a', { href: '#', onClick: (e) => { e.preventDefault(); if (fetchConvRef.current) void fetchConvRef.current() }, style: { marginLeft: 'auto', fontSize: '12px', color: WX, textDecoration: 'none' } }, '刷新'),
+    ),
+    convErr ? R.createElement('p', { style: { ...dim, color: '#e67e22', margin: '0 0 8px 0' } }, convErr) : null,
+    runningTasks.map((t) => R.createElement('div', { key: t.id || t.text, style: { padding: '7px 10px', borderRadius: '10px', background: 'rgba(241,196,15,.12)', border: '1px solid rgba(241,196,15,.4)', fontSize: '12px', marginBottom: '8px', wordBreak: 'break-word' } },
+      '🔄 正在执行：' + (t.text || '（无文本）') + '（已排队 ' + elapsedText(t.queuedAt) + (t.lastTool ? ' · 最近工具 ' + t.lastTool : '') + (t.session ? ' · 会话 ' + t.session.slice(0, 8) : '') + '）')),
+    conv
+      ? ((conv.peers && conv.peers.length) ? conv.peers.map(convPeerNode)
+        : R.createElement('p', { style: dim }, '暂无对话记录——在手机微信里发条消息，这里会实时出现。'))
+      : R.createElement('p', { style: dim }, convErr ? '' : '加载中…')
+  )
+
   return R.createElement('div', { style: { padding: '0 0 6px 0' } },
     // ── 头卡：微信绿 + 气泡 logo + 状态胶囊 ──────────────────────────
     R.createElement('div', {
@@ -396,6 +498,9 @@ function Panel() {
       stat('任务', (b.running || 0) + ' / ' + (b.tasks || 0), '🧩'),
       stat('心跳', b.ageSec === null || b.ageSec === undefined ? 'n/a' : b.ageSec + 's', '💚'),
     ),
+
+    // ── 手机对话（来新任务/新回复自动强制刷新）────────────────────────
+    convNode,
 
     // ── 明细表 ─────────────────────────────────────────────────────
     R.createElement('div', { style: { ...skin.card, borderRadius: '12px', padding: '10px 12px', marginBottom: '10px' } },
