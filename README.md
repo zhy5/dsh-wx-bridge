@@ -86,7 +86,9 @@ dsh plugin --profile <profile> add @zmainer/dsh-wx-bridge
 | `cwd` | 微信任务的默认工作目录 | 宿主启动目录 |
 | `vault` | Obsidian 知识库绝对路径（可选，供提示词模板占位符使用） | 空 |
 | `allowlist` | 准入模式：`strict`（默认）/ `auto` / `open` —— 面板「准入模式」亦可切换 | `strict` |
-| `dshBin` | DSH 运行时入口（`<安装目录>/resources/dsh-runtime/lib/bin.js`）。**留空＝五级自动探测**：显式参数/环境变量 → 宿主自证快照 → PATH/npm 全局 → 桌面安装目录扫描 → 运行中进程嗅探 | 自动 |
+| `dshBin` | DSH 运行时入口（`<安装目录>/resources/dsh-runtime/lib/bin.js`）。**留空＝自动探测**：显式参数/环境变量 → 宿主自证快照 → **宿主自己的模块解析**（`require.resolve('@deepseek-ai/dsh/lib/bin.js')`，桌面端的入口在 `app.asar` 内也能解析）→ PATH/npm 全局 → 桌面安装目录扫描 → 运行中进程嗅探。入口落在 `.asar` 内时自动用 `ELECTRON_RUN_AS_NODE=1` 跑 | 自动 |
+| `hostHome` | 宿主的 `DSH_HOME`（桌面端 = harness home）。**留空＝自动推导**：`DSH_HOME` → 插件自身安装路径上溯（`<home>/profiles/<p>/node_modules/<pkg>/lib/index.js`）→ `%APPDATA%/dsh-desktop/harness` → `~/.ohdsh` → `~/.dsh`。解析到 ⇒ ACP 会话直接写进**宿主的会话仓库**（手机对话出现在桌面工作区、可点开继续），微信 token 也存在宿主 home（不再每次重启被擦） | 自动 |
+| `lifecycle` | `auto`（默认）/ `host`（宿主托管：应用一开就拉起、应用退出即结束）/ `standalone`（独立 keeper 守护，应用关着也能用）。`auto` = 桌面宿主里用 `host`，CLI 形态用 `standalone` | auto |
 | `intervalMs` / `staleMs` | 自检间隔 / 心跳判新阈值 | 300000 |
 | `prompt` | 手机任务的**固定前置提示词**（兜底路径用；留空 = 不加任何前缀） | 空 |
 | `acp.enabled` | 关掉 ACP 路径（退回一次性 headless） | true |
@@ -230,7 +232,7 @@ echo "来自管道的长文本" | node "<dataDir>/wxpush.mjs" --stdin
 | Node | **`>=22.19.0`**（`package.json` 的 `engines`）：会话文件是**多帧 zstd**，逐帧解压用到 `node:zlib` 的 `zstdDecompressSync`。桌面端自带运行时（本机实测 v26）与系统 Node（本机 v22.19）都验证过 |
 | 操作系统 | **Windows 已实测**（进程树终止用 `taskkill /T /F`；运行时入口探测含 `%LOCALAPPDATA%\Programs\*` 扫描、PID 复用判断）。macOS / Linux **未实测**：内核是纯 Node，但上述几处是 Windows 实现，跨平台请先跑 `node lib/kernel/bridge.mjs --selftest-runtime`。**已知限制（1.1.8 起明示）**：任务超时/取消的进程树终止走 Windows `taskkill /T /F`，macOS / Linux 下**不会真正终止子进程**（需另行接入 `process.kill`） |
 | 依赖 | **零运行时依赖**（只用 Node 内建模块）；不依赖任何 `@deepseek-ai/*` 包（宿主能力通过 `ctx.inject` 取用，缺失即降级） |
-| 自测 | **`--print-config`（只读：打印实际配置链）** / `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` |
+| 自测 | **`--print-config`（只读：打印实际配置链）** / `--selftest-runtime`（运行时入口）/ `--selftest-approval`（审批卡与回复解析）/ `--selftest-acp-approval`（审批 ↔ ACP `session/request_permission` 的线上契约）/ **`--selftest-overlays`（叠层模板与生成物：预设一致 + 推送提示 + 缩进）** / `--selftest-outbox`（推送信箱）/ `--selftest-files` / `--selftest-inbound` / `--selftest-presets` / **`--selftest-creds`（凭据改写只换 refs 段、records 与 token 不丢）** |
 
 ## 常见问题 / Troubleshooting
 
@@ -266,6 +268,20 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 不要手工复制文件进 `node_modules`，也不要在两个通道之间来回切。
 
 ## 最近变更
+
+- **1.1.9**：修**桌面端 0.2.0-rc.2 实测反馈的四个问题**（issue #1）。四个根因是同一件事：**插件猜不到自己在哪个 home 里**。
+  ① **宿主 home 自动推导**（新增 `hostHome` 自动链，见「配置」）：桌面端不设 `DSH_HOME`，旧逻辑因此退进隔离 home——
+  微信 token 写进隔离 home、又被每次重启的重写擦掉（**每次都要重新扫码**）；ACP 会话也落在私有会话仓库里，
+  宿主 `attach` 报 `session persistence holds no such session`（**手机上的会话点不开**）。home 一推导出来，这两个问题一起消失。
+  ② **凭据只换 `refs` 段**：共享模式改成"就地替换 refs 块 + 与已有条目合并"，宿主的 `records:`（登录记录）与注释原样保留
+  （旧写法整文件重写会把它们清空）；隔离模式下 `dsh-home/.credentials.yaml` 里已有的微信 token 不再被"重写时排除微信 token"抹掉。
+  新增离线自测 `--selftest-creds`（8 项断言：records/version/注释/token 保留、新键写入、旧键更新、二次改写不重复）。
+  ③ **asar 运行时入口**：`argv[1]` 不是 `bin.js` 时（桌面端是 `app.asar/.../dsh-desktop-host/lib/cli.js`），改用**宿主自己的模块解析**
+  （Electron 的 fs 已打 asar 补丁）找 `<...>/app.asar/dsh/node_modules/@deepseek-ai/dsh/lib/bin.js`；入口在 `.asar` 内时 spawn 补
+  `ELECTRON_RUN_AS_NODE=1`（普通 node 读不了 asar）。旧逻辑只认 `<runtime>/lib/bin.js` ⇒ `runtimeBin=""`、手机对话全挂。
+  ④ **宿主任务空回不再干等 180 秒**：`/wxbridge/task` 的轮询加"停滞早退"（12 轮≈14 秒无新事件即返回，桥立刻回落 ACP 通道），
+  并把 `pageShape` / `eventTypes` / `stagnant` 写进 `task-debug.jsonl` 与响应体——旧版只回一句空 `text`，宿主到底给了什么字段无从判断。
+  ⑤ **`lifecycle` 默认改 `auto`**：桌面宿主里自动 `host`（应用一开就拉起、一关就结束），不再要求用户手改 `cordis.patch.yml`。
 
 - **1.1.8**：修**发送回执判定**（用户反馈「日志说发了、手机没收到」）—— 判据原本只查 `ret`，
   而 iLink 在「HTTP 200 但没投递」时回的是 `errcode`（实测 `{"errcode":-14,"errmsg":"session timeout"}`）⇒ **假成功**：
