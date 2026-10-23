@@ -269,6 +269,11 @@ ode_modules\@zmainer\dsh-wx-bridge` → 改名成 `...dsh-wx-bridge.bak` 更稳�
 
 ## 最近变更
 
+- **1.1.10**：修**网关拒绝时的死循环**（本机实测，2026-10-23）——`getupdates` 回业务码（如 `-14 session timeout`）时网关**立刻**返回、
+  不走 long-poll，旧循环不睡就变成死循环：一夜写出 **1.5 GB** `bridge.log`，还和另一条桥抢同一个 bot。现在按连续失败次数
+  指数退避（3→6→12→24→48→60 秒封顶）、日志每 120 次一条、恢复时记 `getupdates-recovered`，心跳 phase 变 `rejected`
+  （面板与 `/status` 直接看得见"通道被拒"）。
+
 - **1.1.9**：修**桌面端 0.2.0-rc.2 实测反馈的四个问题**（issue #1）。四个根因是同一件事：**插件猜不到自己在哪个 home 里**。
   ① **宿主 home 自动推导**（新增 `hostHome` 自动链，见「配置」）：桌面端不设 `DSH_HOME`，旧逻辑因此退进隔离 home——
   微信 token 写进隔离 home、又被每次重启的重写擦掉（**每次都要重新扫码**）；ACP 会话也落在私有会话仓库里，
